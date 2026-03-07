@@ -101,8 +101,8 @@ jobs:
             echo "Failed to find upstream directory"
             exit 1
           fi
-          mv "$UPSTREAM_DIR"/* /tmp/upstream/
-          rmdir "$UPSTREAM_DIR"
+          cp -r "$UPSTREAM_DIR/"* /tmp/upstream/
+          rm -rf "$UPSTREAM_DIR"
           
           echo "Upstream source fetched at commit: $LATEST_COMMIT"
 
