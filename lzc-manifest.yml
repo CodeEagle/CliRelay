@@ -1,0 +1,30 @@
+lzc-sdk-version: '0.1'
+package: fun.selfstudio.app.migration.clirelay
+version: 0.0.1
+min_os_version: 1.3.8
+name: CliRelay
+description: (LazyCat Auto-build) AI CLI Proxy - Unified API for Gemini CLI, Claude Code, OpenAI Codex
+license: MIT
+homepage: https://help.router-for.me/
+author: kittors
+application:
+  subdomain: clirelay
+  public_path:
+    - /
+  upstreams:
+    - location: /
+      backend: http://clirelay:8317/
+services:
+  clirelay:
+    image: registry.lazycat.cloud/codeeagle/clirelay:latest
+    environment:
+      - TZ=Asia/Shanghai
+    binds:
+      - /lzcapp/var/data/clirelay:/CLIProxyAPI
+locales:
+  en:
+    name: CliRelay
+    description: (LazyCat Auto-build) AI CLI Proxy - Unified API for Gemini CLI, Claude Code, OpenAI Codex
+  zh:
+    name: CliRelay
+    description: （懒猫微服自动构建）AI CLI 代理 - 统一 API 服务
