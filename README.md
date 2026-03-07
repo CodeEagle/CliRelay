@@ -29,8 +29,8 @@ Management UI defaults:
 
 - App entrypoint: `/`
 - Dashboard URL: `https://api-<your-app-domain>/management.html`
-- Initial management key: `lazycat`
-- Change `remote-management.secret-key` in `/lzcapp/var/data/clirelay/config.yaml` after first install
+- Initial management key: `change-me-clirelay-admin-key`
+- `remote-management.secret-key` is stored in `/lzcapp/var/data/clirelay/config.yaml`
 
 ### Ports
 
