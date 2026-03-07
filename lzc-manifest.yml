@@ -16,7 +16,7 @@ application:
       backend: http://app:8317/
 services:
   app:
-    image: registry.lazycat.cloud/invokerlaw/codeeagle/clirelay:98e76794551691fd
+    image: registry.lazycat.cloud/invokerlaw/codeeagle/clirelay:456eada84925c1e4
     command: >-
       sh -lc 'mkdir -p /lzcapp/var/data/clirelay/auths /lzcapp/var/data/clirelay/logs &&
       if [ ! -f /lzcapp/var/data/clirelay/config.yaml ]; then cp /CLIProxyAPI/config.example.yaml /lzcapp/var/data/clirelay/config.yaml; fi &&
