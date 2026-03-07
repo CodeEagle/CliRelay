@@ -13,9 +13,9 @@ application:
     - /
   upstreams:
     - location: /
-      backend: http://clirelay:8317/
+      backend: http://app:8317/
 services:
-  clirelay:
+  app:
     image: registry.lazycat.cloud/codeeagle/clirelay:latest
     environment:
       - TZ=Asia/Shanghai
