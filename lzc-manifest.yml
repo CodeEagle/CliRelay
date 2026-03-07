@@ -13,9 +13,9 @@ application:
     - /
   upstreams:
     - location: /
-      backend: http://app:8317/
+      backend: http://clirelay:8317/
 services:
-  app:
+  clirelay:
     image: registry.lazycat.cloud/invokerlaw/codeeagle/clirelay:456eada84925c1e4
     command: >-
       sh -lc 'mkdir -p /lzcapp/var/data/clirelay/auths /lzcapp/var/data/clirelay/logs &&
