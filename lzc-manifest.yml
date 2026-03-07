@@ -10,7 +10,7 @@ author: kittors
 application:
   subdomain: clirelay
   public_path:
-    - /
+    - /management.html
   upstreams:
     - location: /
       backend: http://clirelay:8317/
