@@ -20,6 +20,8 @@ services:
     command: >-
       sh -lc 'mkdir -p /lzcapp/var/data/clirelay/auths /lzcapp/var/data/clirelay/logs &&
       if [ ! -f /lzcapp/var/data/clirelay/config.yaml ]; then cp /CLIProxyAPI/config.example.yaml /lzcapp/var/data/clirelay/config.yaml; fi &&
+      sed -i "s/^  allow-remote: false$/  allow-remote: true/" /lzcapp/var/data/clirelay/config.yaml &&
+      sed -i "s/^  secret-key: \"\"$/  secret-key: \"change-me-clirelay-admin-key\"/" /lzcapp/var/data/clirelay/config.yaml &&
       ln -sf /lzcapp/var/data/clirelay/config.yaml /CLIProxyAPI/config.yaml &&
       rm -rf /root/.cli-proxy-api &&
       ln -s /lzcapp/var/data/clirelay/auths /root/.cli-proxy-api &&

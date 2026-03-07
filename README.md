@@ -25,6 +25,12 @@ After installation, access the service from the LazyCat app entrypoint or subdom
 
 Edit the persisted config file at: `/lzcapp/var/data/clirelay/config.yaml`
 
+Management UI defaults:
+
+- URL: `/management.html`
+- Initial management key: `change-me-clirelay-admin-key`
+- Change `remote-management.secret-key` in `/lzcapp/var/data/clirelay/config.yaml` after first install
+
 ### Ports
 
 | Port | Description |
