@@ -4,210 +4,112 @@ on:
   workflow_dispatch:
     inputs:
       force_build:
-        description: 'Force build even if no new version'
+        description: "Force build even if no new version"
         required: false
         default: false
         type: boolean
+      target_version:
+        description: "Target version to build (tag or commit)"
+        required: false
+        default: ""
+        type: string
       publish_to_store:
-        description: 'Publish to LazyCat App Store'
+        description: "Publish to LazyCat App Store"
         required: false
         default: false
         type: boolean
-  schedule:
-    - cron: '0 */6 * * *'
 
 env:
   UPSTREAM_REPO: kittors/CliRelay
-  PROJECT_NAME: CliRelay
-  PROJECT_NAME_LOWER: clirelay
-  OFFICIAL_IMAGE_REGISTRY: ""
-  PRECOMPILED_BINARY_URL: ""
-  DOCKERFILE_TYPE: custom
-  SERVICE_PORT: "8317"
-  SERVICE_CMD: '["/CLIProxyAPI/CLIProxyAPI"]'
 
 jobs:
-  check-and-update:
+  build-image:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
       packages: write
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get latest upstream commit
+      - name: Get target version
         id: get-version
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Fetching latest commit from upstream..."
-          
-          COMMIT_RESPONSE=$(gh api "repos/${{ env.UPSTREAM_REPO }}/commits?per_page=1" 2>&1 || true)
-          if echo "$COMMIT_RESPONSE" | jq -e '.[0].sha' >/dev/null 2>&1; then
-            LATEST_COMMIT=$(echo "$COMMIT_RESPONSE" | jq -r '.[0].sha' | cut -c1-7)
-            COMMIT_DATE=$(echo "$COMMIT_RESPONSE" | jq -r '.[0].commit.author.date')
-            echo "Latest commit: $LATEST_COMMIT"
-            echo "Commit date: $COMMIT_DATE"
-            echo "latest_version=$LATEST_COMMIT" >> $GITHUB_OUTPUT
-            echo "commit_date=$COMMIT_DATE" >> $GITHUB_OUTPUT
+          TARGET_VERSION="${{ inputs.target_version }}"
+
+          if [ -n "$TARGET_VERSION" ]; then
+            SOURCE_VERSION="$TARGET_VERSION"
           else
-            echo "Failed to fetch upstream commits"
+            SOURCE_VERSION=$(gh api "repos/${{ env.UPSTREAM_REPO }}/tags?per_page=20" --jq '.[].name' 2>/dev/null | while read -r tag; do
+              norm="${tag#v}"
+              if [[ "$norm" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                echo "$tag"
+                break
+              fi
+            done)
+          fi
+
+          if [ -z "$SOURCE_VERSION" ]; then
+            echo "Failed to determine target version"
             exit 1
           fi
+
+          BUILD_VERSION="${SOURCE_VERSION#v}"
+          echo "source_version=$SOURCE_VERSION" >> "$GITHUB_OUTPUT"
+          echo "build_version=$BUILD_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Check if update needed
         id: check-update
         run: |
-          CURRENT_IMAGE=$(grep 'image:' lzc-manifest.yml | head -1 | awk '{print $2}')
-          echo "Current image: $CURRENT_IMAGE"
-
-          LATEST_COMMIT="${{ steps.get-version.outputs.latest_version }}"
+          CURRENT_VERSION=$(grep '^version:' lzc-manifest.yml | head -1 | awk '{print $2}')
+          TARGET_VERSION="${{ inputs.target_version }}"
           FORCE_BUILD="${{ inputs.force_build }}"
+          BUILD_VERSION="${{ steps.get-version.outputs.build_version }}"
 
-          if [ "$FORCE_BUILD" = "true" ]; then
-            echo "update_needed=true" >> $GITHUB_OUTPUT
-            echo "Force build requested"
-          elif [ -n "$LATEST_COMMIT" ] && [[ "$CURRENT_IMAGE" != *"$LATEST_COMMIT"* ]]; then
-            echo "update_needed=true" >> $GITHUB_OUTPUT
-            echo "New commit available: $LATEST_COMMIT"
+          echo "Current version: $CURRENT_VERSION"
+          echo "Target version: $BUILD_VERSION"
+
+          if [ -n "$TARGET_VERSION" ]; then
+            echo "update_needed=true" >> "$GITHUB_OUTPUT"
+          elif [ "$FORCE_BUILD" = "true" ]; then
+            echo "update_needed=true" >> "$GITHUB_OUTPUT"
+          elif [ "$CURRENT_VERSION" != "$BUILD_VERSION" ]; then
+            echo "update_needed=true" >> "$GITHUB_OUTPUT"
           else
-            echo "update_needed=false" >> $GITHUB_OUTPUT
-            echo "Already on latest commit"
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Setup Node.js
-        if: steps.check-update.outputs.update_needed == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install lzc-cli
-        if: steps.check-update.outputs.update_needed == 'true'
-        run: npm install -g @lazycatcloud/lzc-cli
-
-      - name: Fetch upstream source
+      - name: Clone upstream source code
         if: steps.check-update.outputs.update_needed == 'true'
         run: |
-          LATEST_COMMIT="${{ steps.get-version.outputs.latest_version }}"
-          
-          curl -sL "https://github.com/${{ env.UPSTREAM_REPO }}/archive/${LATEST_COMMIT}.tar.gz" -o /tmp/upstream.tar.gz
-          mkdir -p /tmp/upstream
-          tar -xzf /tmp/upstream.tar.gz -C /tmp/upstream
-          
-          # Find the extracted directory
-          UPSTREAM_DIR=$(find /tmp/upstream -maxdepth 1 -type d -name "CliRelay-*" | head -1)
-          if [ -z "$UPSTREAM_DIR" ]; then
-            echo "Failed to find upstream directory"
-            exit 1
-          fi
-          cp -r "$UPSTREAM_DIR/"* /tmp/upstream/
-          rm -rf "$UPSTREAM_DIR"
-          
-          echo "Upstream source fetched at commit: $LATEST_COMMIT"
+          SOURCE_VERSION="${{ steps.get-version.outputs.source_version }}"
 
-      - name: Build and push image
+          git clone --depth 1 --branch "$SOURCE_VERSION" "https://github.com/${{ env.UPSTREAM_REPO }}.git" /tmp/clirelay-source
+
+      - name: Build and push image to ghcr.io
         if: steps.check-update.outputs.update_needed == 'true'
-        id: build-image
         env:
-          LZC_CLI_TOKEN: ${{ secrets.LZC_CLI_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          LATEST_COMMIT="${{ steps.get-version.outputs.latest_version }}"
-          COMMIT_DATE="${{ steps.get-version.outputs.commit_date }}"
-          
-          cd /tmp/upstream
+          cd /tmp/clirelay-source
 
-          LOCAL_IMAGE="ghcr.io/${{ github.repository_owner }}/${{ env.PROJECT_NAME_LOWER }}:${LATEST_COMMIT}"
-          LOCAL_IMAGE=$(echo "$LOCAL_IMAGE" | tr '[:upper:]' '[:lower:]')
-          
+          SOURCE_VERSION="${{ steps.get-version.outputs.source_version }}"
+          BUILD_VERSION="${{ steps.get-version.outputs.build_version }}"
+          UPSTREAM_COMMIT=$(git rev-parse --short HEAD)
+          BUILD_DATE=$(git log -1 --format=%cI)
+
+          GHCR_IMAGE="ghcr.io/${{ github.repository_owner }}/clirelay:${SOURCE_VERSION}"
+          GHCR_IMAGE=$(echo "$GHCR_IMAGE" | tr '[:upper:]' '[:lower:]')
+
           docker build \
-            --build-arg VERSION=${LATEST_COMMIT} \
-            --build-arg COMMIT=${LATEST_COMMIT} \
-            --build-arg BUILD_DATE=${COMMIT_DATE} \
-            -t "$LOCAL_IMAGE" .
-          
-          echo "$GITHUB_TOKEN" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
-          docker push "$LOCAL_IMAGE"
-          
-          LOCAL_IMAGE_LATEST="ghcr.io/${{ github.repository_owner }}/${{ env.PROJECT_NAME_LOWER }}:latest"
-          LOCAL_IMAGE_LATEST=$(echo "$LOCAL_IMAGE_LATEST" | tr '[:upper:]' '[:lower:]')
-          docker tag "$LOCAL_IMAGE" "$LOCAL_IMAGE_LATEST"
-          docker push "$LOCAL_IMAGE_LATEST"
-          
-          COPY_OUTPUT=$(lzc-cli appstore copy-image "$LOCAL_IMAGE_LATEST" 2>&1)
-          echo "$COPY_OUTPUT"
-          ACCELERATED_URL=$(echo "$COPY_OUTPUT" | grep -oE 'registry\.lazycat\.cloud/[a-zA-Z0-9_/.:-]+' | head -1 || echo "")
-          
-          if [ -z "$ACCELERATED_URL" ]; then
-            echo "Failed to get accelerated URL"
-            exit 1
-          fi
-          
-          echo "accelerated_url=$ACCELERATED_URL" >> $GITHUB_OUTPUT
+            --build-arg VERSION="$BUILD_VERSION" \
+            --build-arg COMMIT="$UPSTREAM_COMMIT" \
+            --build-arg BUILD_DATE="$BUILD_DATE" \
+            -t "$GHCR_IMAGE" .
 
-      - name: Update manifest
-        if: steps.check-update.outputs.update_needed == 'true'
-        run: |
-          ACCELERATED_URL="${{ steps.build-image.outputs.accelerated_url }}"
-          LATEST_COMMIT="${{ steps.get-version.outputs.latest_version }}"
-          
-          sed -i "s|image:.*|image: $ACCELERATED_URL|g" lzc-manifest.yml
-          sed -i "s|^version:.*|version: ${LATEST_COMMIT}|g" lzc-manifest.yml
-          
-          echo "Updated to commit: $LATEST_COMMIT"
-          echo "Updated image: $ACCELERATED_URL"
+          echo "$GITHUB_TOKEN" | docker login ghcr.io -u "${{ github.repository_owner }}" --password-stdin
+          docker push "$GHCR_IMAGE"
 
-      - name: Build package
-        if: steps.check-update.outputs.update_needed == 'true'
-        env:
-          LZC_CLI_TOKEN: ${{ secrets.LZC_CLI_TOKEN }}
-        run: |
-          lzc-cli project build -o ${{ env.PROJECT_NAME_LOWER }}.lpk
-
-      - name: Publish to LazyCat App Store
-        if: steps.check-update.outputs.update_needed == 'true' && inputs.publish_to_store == true
-        env:
-          LZC_CLI_TOKEN: ${{ secrets.LZC_CLI_TOKEN }}
-        run: |
-          LATEST_COMMIT="${{ steps.get-version.outputs.latest_version }}"
-          RELEASE_NOTES="Auto-build from CliRelay upstream commit: $LATEST_COMMIT"
-          
-          lzc-cli appstore publish ${{ env.PROJECT_NAME_LOWER }}.lpk --clang en -c "$RELEASE_NOTES"
-
-      - name: Create GitHub Release
-        if: steps.check-update.outputs.update_needed == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          LATEST_COMMIT="${{ steps.get-version.outputs.latest_version }}"
-          COMMIT_DATE="${{ steps.get-version.outputs.commit_date }}"
-          
-          RELEASE_NOTES="Auto-build from CliRelay commit: $LATEST_COMMIT date: $COMMIT_DATE"
-          
-          gh release delete "build-$LATEST_COMMIT" --yes 2>/dev/null || true
-          
-          gh release create "build-$LATEST_COMMIT" \
-            --title "Build $LATEST_COMMIT" \
-            --notes "$RELEASE_NOTES" \
-            ${{ env.PROJECT_NAME_LOWER }}.lpk
-
-      - name: Commit and push changes
-        if: steps.check-update.outputs.update_needed == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          LATEST_COMMIT="${{ steps.get-version.outputs.latest_version }}"
-          
-          FILE_SHA=$(gh api repos/${{ github.repository }}/contents/lzc-manifest.yml --jq '.sha' 2>/dev/null || echo "")
-          
-          if [ -z "$FILE_SHA" ]; then
-            echo "Failed to get file SHA"
-            exit 1
-          fi
-          
-          gh api -X PUT repos/${{ github.repository }}/contents/lzc-manifest.yml \
-            -f message="Update CliRelay to commit $LATEST_COMMIT" \
-            -f content="$(base64 -w 0 lzc-manifest.yml)" \
-            -f sha="$FILE_SHA" \
-            -f branch="${{ github.ref_name }}"
+          echo "Built and pushed image: $GHCR_IMAGE"

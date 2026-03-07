@@ -19,17 +19,23 @@ This is the LazyCat Auto-build version, automatically built from the upstream [k
 
 ## Usage
 
-After installation, access the service at: `http://clirelay:8317`
+After installation, access the service from the LazyCat app entrypoint or subdomain for this app.
 
 ### Configuration
 
-Edit the config file at: `/lzcapp/var/data/clirelay/config.yaml`
+Edit the persisted config file at: `/lzcapp/var/data/clirelay/config.yaml`
 
 ### Ports
 
 | Port | Description |
 |------|-------------|
 | 8317 | Main API port |
+
+### Persisted data
+
+- Config: `/lzcapp/var/data/clirelay/config.yaml`
+- Auth cache: `/lzcapp/var/data/clirelay/auths`
+- Logs: `/lzcapp/var/data/clirelay/logs`
 
 ## License
 
