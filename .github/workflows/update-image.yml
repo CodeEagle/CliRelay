@@ -91,10 +91,18 @@ jobs:
         run: |
           LATEST_COMMIT="${{ steps.get-version.outputs.latest_version }}"
           
-          git clone --depth 1 --branch main https://github.com/${{ env.UPSTREAM_REPO }}.git /tmp/upstream
-          cd /tmp/upstream
-          git fetch --depth 1 origin +$LATEST_COMMIT
-          git checkout $LATEST_COMMIT
+          curl -sL "https://github.com/${{ env.UPSTREAM_REPO }}/archive/${LATEST_COMMIT}.tar.gz" -o /tmp/upstream.tar.gz
+          mkdir -p /tmp/upstream
+          tar -xzf /tmp/upstream.tar.gz -C /tmp/upstream
+          
+          # Find the extracted directory
+          UPSTREAM_DIR=$(find /tmp/upstream -maxdepth 1 -type d -name "CliRelay-*" | head -1)
+          if [ -z "$UPSTREAM_DIR" ]; then
+            echo "Failed to find upstream directory"
+            exit 1
+          fi
+          mv "$UPSTREAM_DIR"/* /tmp/upstream/
+          rmdir "$UPSTREAM_DIR"
           
           echo "Upstream source fetched at commit: $LATEST_COMMIT"
 
