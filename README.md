@@ -1,6 +1,6 @@
 # CliRelay
 
-AI CLI Proxy - Unified API for Gemini CLI, Claude Code, OpenAI Codex and more.
+AI CLI Relay - Unified API for Gemini CLI, Claude Code, OpenAI Codex and more.
 
 ## Description
 
@@ -19,7 +19,7 @@ This is the LazyCat Auto-build version, automatically built from the upstream [k
 
 ## Usage
 
-After installation, access the service from the LazyCat app entrypoint or subdomain for this app.
+After installation, open the LazyCat app entrypoint. The root page serves a static landing page that links to the WebUI hosted behind the `api-` prefixed route.
 
 ### Configuration
 
@@ -27,8 +27,9 @@ Edit the persisted config file at: `/lzcapp/var/data/clirelay/config.yaml`
 
 Management UI defaults:
 
-- URL: `/management.html`
-- Initial management key: `change-me-clirelay-admin-key`
+- App entrypoint: `/`
+- Dashboard URL: `https://api-<your-app-domain>/management.html`
+- Initial management key: `lazycat`
 - Change `remote-management.secret-key` in `/lzcapp/var/data/clirelay/config.yaml` after first install
 
 ### Ports
