@@ -20,11 +20,9 @@ application:
 services:
   clirelay:
     image: registry.lazycat.cloud/invokerlaw/codeeagle/clirelay:456eada84925c1e4
-    setup_script: |
-      mkdir -p /CLIProxyAPI/static
-      cp /lzcapp/pkg/content/management.html /CLIProxyAPI/static/management.html
     command: >-
-      sh -lc 'mkdir -p /lzcapp/var/data/clirelay/auths /lzcapp/var/data/clirelay/logs &&
+      sh -lc 'mkdir -p /CLIProxyAPI/static /lzcapp/var/data/clirelay/auths /lzcapp/var/data/clirelay/logs &&
+      cp /lzcapp/pkg/content/management.html /CLIProxyAPI/static/management.html &&
       if [ ! -f /lzcapp/var/data/clirelay/config.yaml ]; then cp /lzcapp/pkg/content/default-config.yaml /lzcapp/var/data/clirelay/config.yaml; fi &&
       ln -sf /lzcapp/var/data/clirelay/config.yaml /CLIProxyAPI/config.yaml &&
       rm -rf /root/.cli-proxy-api &&
