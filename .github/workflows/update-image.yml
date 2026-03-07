@@ -195,7 +195,7 @@ jobs:
       - name: Commit and push changes
         if: steps.check-update.outputs.update_needed == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           LATEST_COMMIT="${{ steps.get-version.outputs.latest_version }}"
           
