@@ -16,7 +16,7 @@ application:
       backend: http://app:8317/
 services:
   app:
-    image: registry.lazycat.cloud/invokerlaw/codeeagle/clirelay:e0571092c8f0f31d
+    image: registry.lazycat.cloud/invokerlaw/codeeagle/clirelay:98e76794551691fd
     environment:
       - TZ=Asia/Shanghai
     binds:
