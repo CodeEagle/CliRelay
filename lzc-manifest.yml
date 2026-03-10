@@ -16,7 +16,7 @@ application:
   upstreams:
     - location: /
       domain_prefix: api
-      backend: http://clirelay:8317
+      backend: http://clirelay:8317/
 services:
   clirelay:
     image: registry.lazycat.cloud/invokerlaw/codeeagle/clirelay:456eada84925c1e4
