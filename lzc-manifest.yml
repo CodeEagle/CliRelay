@@ -19,7 +19,7 @@ application:
       backend: http://clirelay:8317/
 services:
   clirelay:
-    image: registry.lazycat.cloud/invokerlaw/codeeagle/clirelay:456eada84925c1e4
+    image: registry.lazycat.cloud/invokerlaw/codeeagle/clirelay:5b583660568318b7
     command: >-
       sh -lc 'mkdir -p /CLIProxyAPI/static /lzcapp/var/data/clirelay/auths /lzcapp/var/data/clirelay/logs &&
       cp /lzcapp/pkg/content/management.html /CLIProxyAPI/static/management.html &&
